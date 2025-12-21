@@ -1,21 +1,11 @@
 import re
 
 
-def clean_physical_exam(text: str):
-    """Clean physical examination text by removing discharge information and duplicate sections.
-
-    Args:
-        text: Raw physical examination text from clinical notes
-
-    Returns:
-        Cleaned physical examination text with discharge info and duplicates removed
-    """
+def clean_section(text: str):
     # Remove lines that only contain a "."
     text = "\n".join(line for line in text.split("\n") if line.strip() != ".")
     # Replace unicode "times" symbol
     text = text.replace("×", "x")
-    # Redact ground truth procedure
-    text = re.sub(r"cholecystostomy", "___", text, flags=re.IGNORECASE)
 
     # Remove HTML tags: <h3>, </h3>, <I></I>, and <br>
     text = re.sub(r"</?[hH]3>|</?[iI]>|<br>", "", text, flags=re.IGNORECASE)
@@ -29,6 +19,21 @@ def clean_physical_exam(text: str):
     text = text.replace("\x97", "-")  # Em dash
     text = text.replace("\x91", "'")  # Single quotes
     text = text.replace("\x92", "'")  # Single quotes
+
+    return text
+
+
+def clean_physical_exam(text: str):
+    """Clean physical examination text by removing discharge information and duplicate sections.
+
+    Args:
+        text: Raw physical examination text from clinical notes
+
+    Returns:
+        Cleaned physical examination text with discharge info and duplicates removed
+    """
+    # Redact ground truth procedure
+    text = re.sub(r"cholecystostomy", "___", text, flags=re.IGNORECASE)
 
     # Remove family history section
     # Pattern matches: Family History: ___: none

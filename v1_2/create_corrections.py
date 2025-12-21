@@ -3,7 +3,7 @@ import pandas as pd
 from tqdm import tqdm
 
 from section_split import initial_formatting, extract_section_content
-from section_cleanup import clean_physical_exam
+from section_cleanup import clean_physical_exam, clean_section
 
 
 def main():
@@ -47,16 +47,17 @@ def main():
         if not all(section in sections for section in required_sections):
             raise ValueError(f"{hadm_id} has a missing section...")
 
-        history = (
-            sections.get("History of Present Illness")
-            .replace("\n", replace_history_linebreaks)
-            .strip()
-            + "\n\nPast Medical History:\n"
-            + sections.get("Past Medical History")
-            .replace("\n", replace_history_linebreaks)
-            .strip()
-        )
+        hpi = clean_section(sections.get("History of Present Illness"))
+        history = hpi.replace("\n", replace_history_linebreaks).strip()
+        pmh = clean_section(sections.get("Past Medical History"))
+        if pmh:
+            history += (
+                "\n\nPast Medical History:\n"
+                + pmh.replace("\n", replace_history_linebreaks).strip()
+            )
+
         pe = sections.get("Physical Exam")
+        pe = clean_section(pe)
         pe = clean_physical_exam(pe)
 
         pe_records.append(

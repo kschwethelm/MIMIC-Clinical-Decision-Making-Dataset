@@ -74,6 +74,7 @@ DISCHARGE_SECTIONS = {
         "order_id": 6,
         "synonyms": [
             "Past Medical History:",
+            "Past medical history:",
             "___ Medical History:",
             "Past ___ History:",
         ],
