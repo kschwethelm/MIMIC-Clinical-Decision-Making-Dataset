@@ -10,9 +10,40 @@ def clean_physical_exam(text: str):
     Returns:
         Cleaned physical examination text with discharge info and duplicates removed
     """
-    # Remove text after discharge-related phrases
+    # Remove lines that only contain a "."
+    text = "\n".join(line for line in text.split("\n") if line.strip() != ".")
+    # Replace unicode "times" symbol
+    text = text.replace("×", "x")
+    # Redact ground truth procedure
+    text = re.sub(r"cholecystostomy", "___", text, flags=re.IGNORECASE)
+
+    # Remove HTML tags: <h3>, </h3>, <I></I>, and <br>
+    text = re.sub(r"</?[hH]3>|</?[iI]>|<br>", "", text, flags=re.IGNORECASE)
+
+    # Replace special characters
+    text = text.replace("\x85", "...")
+    text = text.replace("\x95", "- ")  # Bullet
+    text = text.replace("\x93", '"')  # Left quote
+    text = text.replace("\x94", '"')  # Right quote
+    text = text.replace("\x96", "-")  # En dash
+    text = text.replace("\x97", "-")  # Em dash
+    text = text.replace("\x91", "'")  # Single quotes
+    text = text.replace("\x92", "'")  # Single quotes
+
+    # Remove family history section
+    # Pattern matches: Family History: ___: none
+    family_history_pattern = re.compile(
+        r"Family History:\s*_+:\s*none", re.IGNORECASE | re.DOTALL
+    )
+    fh_match = family_history_pattern.search(text)
+    if fh_match:
+        text = text[: fh_match.start()].strip()
+
+    # Remove text after discharge-related phrases, but avoid discharge in normal sentences
+    # For "on/upon/at/in discharge" or "on/upon/at/in day of discharge" or "day of discharge" (optionally preceded by exam-related headers)
+    # Handles common misspellings: Physical, Phsyical, Physcial
     text = re.sub(
-        r"\b(?:on|upon|at|day\s+of)\s+discharge\b.*",
+        r"(?:\b(?:(?:Physical|Phsyical|Physcial)\s+Exam(?:ination)?|Exam(?:ination)?|PE|Patient\s+examined)\s+)?\b(?:(?:on|upon|at|in)\s+(?:(day|time)\s+of\s+)?|day\s+of\s+)discharge\b.*",
         "",
         text,
         flags=re.IGNORECASE | re.DOTALL,
@@ -31,27 +62,51 @@ def clean_physical_exam(text: str):
         flags=re.IGNORECASE | re.DOTALL,
     ).strip()
 
+    # Handle specific discharge-related "Physical:" patterns (including literal "___")
+    # Also removes "ACS Discharge Physical Exam ___:"
+    text = re.sub(
+        r"(?:\b(?:ACS\s+)?(?:Discharge|Transfer|D/C)\s+(?:Physical\s+Exam\s+)?|___\s*)Physical\s*:.*",
+        "",
+        text,
+        flags=re.IGNORECASE | re.DOTALL,
+    ).strip()
+
+    # Handle "at [prefix]ischarge Exam" pattern (corrupted discharge text)
+    text = re.sub(
+        r"\bat\s+.{0,3}ischarge\s+exam\b.*", "", text, flags=re.IGNORECASE | re.DOTALL
+    ).strip()
+
+    # Handle "Discharge" as a standalone section header (at start of line)
+    text = re.sub(
+        r"(?:^|\n)\s*Discharge\b.*", "", text, flags=re.IGNORECASE | re.DOTALL
+    ).strip()
+
+    # Handle "--DISCHARGE--" pattern
+    text = re.sub(r"--DISCHARGE--.*", "", text, flags=re.IGNORECASE | re.DOTALL).strip()
+
     # Handle standalone all-caps "DISCHARGE"
     text = re.sub(r"\bDISCHARGE\b.*", "", text, flags=re.DOTALL).strip()
 
     # Then handle "discharge" with colon, colon optional for "discharge exam"/"discharge pe"
+    # Also removes "Prior Discharge:" and "On D/C:"
     discharge_pattern = re.compile(
-        r"\b(?:discharge\s*:|discharge\s+exam|discharge\s+pe|discharge\s+labs|D/C\s*:|DISPO).*",
+        r"\b(?:Prior\s+discharge\s*:|discharge\s*:|discharge\s+exam|discharge\s+pe|discharge\s+labs|on\s+discharged\s*:|On\s+D/C\s*:|Time\s+of\s+Discharge\s*:|D/C\s*:|DISPO).*",
         re.IGNORECASE | re.DOTALL,
     )
     text = discharge_pattern.sub("", text).strip()
 
     # Remove labs, imaging, and diagnostics sections (but keep ADMISSION LABS)
     text = re.sub(
-        r"(?<!ADMISSION\s)\b(?:Labs|Laboratory|Imaging|Diagnostics)\s*:.*",
+        r"(?<!ADMISSION\s)\b(?:Labs and imaging|Labs|Laboratory|Imaging|Diagnostics)\s*:.*",
         "",
         text,
         flags=re.IGNORECASE | re.DOTALL,
     ).strip()
 
     # Pattern matches major section headers for additional physical exam sections:
+    # Excludes "Scrotal exam:" and "Pelvic exam:" from being matched
     physical_exam_pattern = re.compile(
-        r"(?:^|\n.{0,15})(?:PHYSICAL\s+EXAM:?|TRANSFER\s+EXAM:|EXAMINATION:|EXAM:|P/E:|PE:|VS:|Vital\s+signs:|AMA:)",
+        r"(?:^|\n.{0,15})(?:PHYSICAL\s+EXAM:?|TRANSFER\s+EXAM:|EXAMINATION:|(?<!Scrotal\s)(?<!Pelvic\s)EXAM:|P/E:|PE:|VS:|Vital\s+signs:|AMA:)",
         re.IGNORECASE,
     )
     matches = list(physical_exam_pattern.finditer(text))
@@ -96,6 +151,32 @@ def clean_physical_exam(text: str):
     lab_match = lab_values_pattern.search(text)
     if lab_match:
         text = text[: lab_match.start()].strip()
+
+    # Remove section headers that may appear in the text
+    text = re.sub(
+        r"\b(?:PE|Physical\s+Exam|Physical\s+Examination)\s*:\s*",
+        "",
+        text,
+        flags=re.IGNORECASE,
+    ).strip()
+
+    # Remove specific string about 10 system review
+    text = text.replace(
+        "10 system review negative, except as stated above in HPI.", ""
+    ).strip()
+
+    # Replace sequences of more than 4 "x" characters with "___"
+    text = re.sub(r"x{5,}", "___", text, flags=re.IGNORECASE).strip()
+
+    # Remove multiple "=", "_" symbols (more than 1) at the beginning and end of text
+    text = re.sub(r"^=={2,}", "", text).strip()
+    text = re.sub(r"=={2,}$", "", text).strip()
+    text = re.sub(r"^__{4,}", "", text).strip()
+    text = re.sub(r"__{4,}$", "", text).strip()
+
+    # Remove "___:" pattern from beginning and end
+    text = re.sub(r"^___:", "", text).strip()
+    text = re.sub(r"___:$", "", text).strip()
 
     # Remove section headers that may appear in the text
     text = re.sub(

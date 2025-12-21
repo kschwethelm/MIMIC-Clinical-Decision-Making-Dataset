@@ -1,4 +1,3 @@
-import sys
 from pathlib import Path
 import pandas as pd
 from tqdm import tqdm
@@ -10,6 +9,8 @@ from section_cleanup import clean_physical_exam
 def main():
     base_mimic_note = Path("/srv/mimic/mimiciv/mimic-iv-note/2.2/note")
     base_new = ""
+    replace_exam_linebreaks = " "
+    replace_history_linebreaks = " "
 
     # Load hospital admission IDs from file
     hadm_ids_file = Path("v1_2/hadm_ids.txt")
@@ -47,14 +48,20 @@ def main():
             raise ValueError(f"{hadm_id} has a missing section...")
 
         history = (
-            sections.get("History of Present Illness").replace("\n", " ").strip()
+            sections.get("History of Present Illness")
+            .replace("\n", replace_history_linebreaks)
+            .strip()
             + "\n\nPast Medical History:\n"
-            + sections.get("Past Medical History").replace("\n", " ").strip()
+            + sections.get("Past Medical History")
+            .replace("\n", replace_history_linebreaks)
+            .strip()
         )
         pe = sections.get("Physical Exam")
         pe = clean_physical_exam(pe)
 
-        pe_records.append({"hadm_id": hadm_id, "pe": pe.replace("\n", " ")})
+        pe_records.append(
+            {"hadm_id": hadm_id, "pe": pe.replace("\n", replace_exam_linebreaks)}
+        )
         hpi_records.append({"hadm_id": hadm_id, "hpi": history})
 
     # Create DataFrames and save to CSV files
