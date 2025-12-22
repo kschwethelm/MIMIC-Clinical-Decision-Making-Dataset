@@ -7,12 +7,12 @@ from section_cleanup import clean_physical_exam, clean_section
 
 
 def main():
-    base_mimic_note = Path("/srv/mimic/mimiciv/mimic-iv-note/2.2/note")
-    base_new = ""
+    base_mimic_note = Path("")
+    base_new = Path("")
     replace_exam_linebreaks = " "
     replace_history_linebreaks = " "
 
-    # Load hospital admission IDs from file
+    # Load hospital admission IDs of CDM dataset
     hadm_ids_file = Path("v1_2/hadm_ids.txt")
     hadm_ids = []
 
