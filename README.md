@@ -5,7 +5,7 @@ For a video overview of the paper, checkout this talk I held for the BZKF: https
 
 ## News
 
-**🧹 MIMIC-CDM Dataset Version 1.2: Fixed some errors in Past History and Physical Exam (see [v1_2/README.md](v1_2/README.md)) 🧹**
+**🧹 Dataset Version 1.2: Fixed errors in Past History and Physical Exam ([v1_2/README.md](v1_2/README.md))**
 
 **🔥 New Addition: Llama 3.3 has been added to the leaderboard! 🔥**
 
